@@ -1,18 +1,35 @@
 const createStore = () => {
-    return {
-        select: (func) => func(store.values),
+
+    let sendUpdatesToSubscribers = (initalLoad = false) => {
+        storeMarkup.subscriberCallbacks.forEach(subscriberCallback => {
+            let currentValue = storeMarkup.getState(subscriberCallback.path);
+            let oldValue = subscriberCallback.value;
+            if(currentValue !== oldValue || initalLoad){
+                subscriberCallback.value = currentValue;
+                subscriberCallback.callback(currentValue);
+            }
+        })
+    }
+
+    const storeMarkup = {
+        getState: (path) => path(storeMarkup.values),
+        subscribe: (path, callback) => {
+            storeMarkup.subscriberCallbacks.push({path, callback, value: storeMarkup.getState(path)})
+            sendUpdatesToSubscribers(true)
+        },
         dispatch: (action) => {
-            for (const [key, value] of Object.entries(store.reducers)){
-                let result = value(store.values[key], action)
+            for (const [key, value] of Object.entries(storeMarkup.reducers)){
+                let result = value(storeMarkup.values[key].current, action)
                 try {
                     result.then()
                 }catch {
-                    if(store.values[key] !== result) {
-                        store.values[key] = {
-                            '_old': store.values[key].current,
-                            ...result
-                        };
-                    };
+                    if(storeMarkup.values[key].current !== result) {
+                        storeMarkup.values[key] = {
+                            _old: storeMarkup.values[key].current,
+                            current: result
+                        }
+                        sendUpdatesToSubscribers()
+                    }
                 }
             }
         },
@@ -23,7 +40,7 @@ const createStore = () => {
                     ...values,
                     [key]: {
                         '_old': {},
-                        ...value()
+                        'current': value()
                     }
                 };
                 reducers = {
@@ -31,10 +48,14 @@ const createStore = () => {
                     [key]: value
                 };
             };
-            store.values = values;
-            store.reducers = reducers;
+            storeMarkup.values = values;
+            storeMarkup.reducers = reducers;
         },
+        subscriberCallbacks: [],
         reducers: {},
         values: {}
     }
+
+    return storeMarkup
+    
 }
