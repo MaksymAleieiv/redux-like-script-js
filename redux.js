@@ -4,8 +4,9 @@ const createStore = () => {
         storeMarkup.subscriberCallbacks.forEach(subscriberCallback => {
             let currentValue = storeMarkup.getState(subscriberCallback.path);
             let oldValue = subscriberCallback.value;
-            if(currentValue !== oldValue || initalLoad){
-                subscriberCallback.value = currentValue;
+            
+            if(currentValue._old === oldValue.current || initalLoad){
+                subscriberCallback.value = {...currentValue};
                 subscriberCallback.callback(currentValue);
             }
         })
@@ -24,10 +25,8 @@ const createStore = () => {
                     result.then()
                 }catch {
                     if(storeMarkup.values[key].current !== result) {
-                        storeMarkup.values[key] = {
-                            _old: storeMarkup.values[key].current,
-                            current: result
-                        }
+                        storeMarkup.values[key]._old = storeMarkup.values[key].current;
+                        storeMarkup.values[key].current = result;
                         sendUpdatesToSubscribers()
                     }
                 }
